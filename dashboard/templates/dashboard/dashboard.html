@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulatore Mini-Impianto Siero → Proteine</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- CSS personalizzato -->
+    {% load static %}
+    <link href="{% static 'css/dashboard.css' %}" rel="stylesheet">
+    
+    <style>
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.3rem;
+        }
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border: 1px solid rgba(0, 0, 0, 0.125);
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+        .results-section {
+            display: none;
+        }
+        .input-group-text {
+            background-color: #f8f9fa;
+        }
+        .scenario-card {
+            transition: transform 0.2s;
+        }
+        .scenario-card:hover {
+            transform: translateY(-2px);
+        }
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+        }
+        .bg-gradient-success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-gradient-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-industry me-2"></i>
+                Simulatore Mini-Impianto Siero → Proteine
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <small>Valorizzazione DOP & Consorzio</small>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Messaggio di benvenuto -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="row">
+            <!-- Form di Input -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-calculator me-2"></i>
+                            Parametri Simulazione
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="simulationForm" method="post">
+                            {% csrf_token %}
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.volume_siero.id_for_label }}" class="form-label">
+                                    {{ form.volume_siero.label }}
+                                </label>
+                                <div class="input-group">
+                                    {{ form.volume_siero }}
+                                    <span class="input-group-text">L</span>
+                                </div>
+                                {% if form.volume_siero.help_text %}
+                                    <div class="form-text">{{ form.volume_siero.help_text }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ form.capacita_investimento.id_for_label }}" class="form-label">
+                                    {{ form.capacita_investimento.label }}
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">€</span>
+                                    {{ form.capacita_investimento }}
+                                </div>
+                                {% if form.capacita_investimento.help_text %}
+                                    <div class="form-text">{{ form.capacita_investimento.help_text }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.costo_impianto.id_for_label }}" class="form-label">
+                                    {{ form.costo_impianto.label }}
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">€</span>
+                                    {{ form.costo_impianto }}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.costi_operativi_annui.id_for_label }}" class="form-label">
+                                    {{ form.costi_operativi_annui.label }}
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">€</span>
+                                    {{ form.costi_operativi_annui }}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.prezzo_vendita_proteine.id_for_label }}" class="form-label">
+                                    {{ form.prezzo_vendita_proteine.label }}
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">€</span>
+                                    {{ form.prezzo_vendita_proteine }}
+                                    <span class="input-group-text">/kg</span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.resa_proteine.id_for_label }}" class="form-label">
+                                    {{ form.resa_proteine.label }}
+                                </label>
+                                <div class="input-group">
+                                    {{ form.resa_proteine }}
+                                    <span class="input-group-text">kg/L</span>
+                                </div>
+                            </div>                            <div class="mb-4">
+                                <label for="{{ form.prezzo_vendita_siero.id_for_label }}" class="form-label">
+                                    {{ form.prezzo_vendita_siero.label }}
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">€</span>
+                                    {{ form.prezzo_vendita_siero }}
+                                    <span class="input-group-text">/L</span>
+                                </div>
+                            </div>
+
+                            <!-- Sezione Parametri Decisionali -->
+                            <hr>
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-cogs me-2"></i>
+                                Parametri Decisionali
+                            </h6>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.costo_distribuzione.id_for_label }}" class="form-label">
+                                    {{ form.costo_distribuzione.label }}
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">€</span>
+                                    {{ form.costo_distribuzione }}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.tempistiche.id_for_label }}" class="form-label">
+                                    {{ form.tempistiche.label }}
+                                </label>
+                                {{ form.tempistiche }}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.spazio_disponibile.id_for_label }}" class="form-label">
+                                    {{ form.spazio_disponibile.label }}
+                                </label>
+                                <div class="input-group">
+                                    {{ form.spazio_disponibile }}
+                                    <span class="input-group-text">m²</span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.personale_disponibile.id_for_label }}" class="form-label">
+                                    {{ form.personale_disponibile.label }}
+                                </label>
+                                {{ form.personale_disponibile }}
+                            </div>
+
+                            <button type="submit" class="btn btn-success btn-lg w-100" id="calculateBtn">
+                                <i class="fas fa-play me-2"></i>
+                                Calcola Simulazione
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sezione Risultati -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-gradient-success text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Risultati Simulazione
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="initialMessage" class="text-center text-muted">
+                            <i class="fas fa-info-circle fa-3x mb-3"></i>
+                            <p>Compila i parametri e clicca "Calcola" per vedere i risultati della simulazione.</p>
+                        </div>
+                        
+                        <div id="resultsSection" class="results-section">
+                            <!-- Messaggio Decisionale -->
+                            <div id="messaggioDecisionale" class="alert mb-4" role="alert" style="display: none;">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        <i id="messaggioIcon" class="fas fa-lightbulb fa-lg me-2"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="alert-heading mb-2">Raccomandazione Strategica</h6>
+                                        <p id="messaggioTesto" class="mb-0"></p>
+                                        <hr class="my-2">
+                                        <small id="messaggioDettagli" class="text-muted"></small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Tabella Comparativa -->
+                            <div class="table-responsive mb-4">
+                                <table class="table table-modern">
+                                    <thead>
+                                        <tr>
+                                            <th>Scenario</th>
+                                            <th class="text-end">Ricavi (€)</th>
+                                            <th class="text-end">Costi (€)</th>
+                                            <th class="text-end">Ricavi-Costi (€)</th>
+                                            <th class="text-end">ROI (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="resultsTableBody">
+                                        <!-- Dati inseriti via JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Grafico principale -->
+                            <div class="chart-container">
+                                <canvas id="comparisonChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sezione KPI Dashboard -->
+        <div id="kpiSection" class="results-section">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h3 class="text-center mb-4">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Dashboard KPI e Analytics
+                    </h3>
+                </div>
+            </div>
+            
+
+            
+            <!-- Grafici Avanzati -->
+            <div class="row">
+                <div class="col-lg-4 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-gradient-info text-white">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-chart-pie me-2"></i>
+                                Distribuzione Costi
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container chart-small">
+                                <canvas id="costsDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-gradient-primary text-white">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-chart-bar me-2"></i>
+                                Analisi Profittabilità
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container chart-small">
+                                <canvas id="profitabilityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Grafico Trend Temporale -->
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-gradient-dark text-white">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Proiezione Quinquennale - Ricavi e Costi Cumulativi
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="trendChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sezione Insights AI -->
+        <div id="insightsSection" class="results-section">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-gradient-success text-white">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-brain me-2"></i>
+                                Insights e Raccomandazioni
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="aiInsights">
+                                <!-- Insights generati dinamicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Sezione Informativa -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-leaf me-2 text-success"></i>
+                            Valorizzazione del Territorio e delle Tradizioni
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <p class="lead">Il nostro simulatore ti aiuta a valutare economicamente la trasformazione del siero di latte in proteine di alta qualità, contribuendo alla valorizzazione delle produzioni DOP del territorio.</p>
+                                
+                                <p>La trasformazione del siero in proteine rappresenta un'opportunità unica per:</p>
+                                <ul>
+                                    <li><strong>Valorizzare un sottoprodotto</strong> spesso considerato scarto</li>
+                                    <li><strong>Creare valore aggiunto</strong> per le aziende del consorzio</li>
+                                    <li><strong>Sostenere l'economia locale</strong> attraverso produzioni innovative</li>
+                                    <li><strong>Rispettare l'ambiente</strong> riducendo gli sprechi</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="bg-light p-4 rounded">
+                                    <i class="fas fa-award fa-3x text-warning mb-3"></i>
+                                    <h6>Qualità DOP</h6>
+                                    <p class="small text-muted">Proteine derivate da siero di produzioni certificate</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white mt-5 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Simulatore Mini-Impianto Siero</h6>
+                    <p class="text-muted small">Strumento per la valutazione economica della trasformazione del siero in proteine.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-muted small">
+                        © 2025 Consorzio DOP<br>
+                        <a href="#" class="text-decoration-none">Contatti</a> | 
+                        <a href="#" class="text-decoration-none">Privacy</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let comparisonChart = null;
+        let costsDistributionChart = null;
+        let roiGaugeChart = null;
+        let trendChart = null;
+        let profitabilityChart = null;
+        
+        // Gestione form con AJAX
+        document.getElementById('simulationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const calculateBtn = document.getElementById('calculateBtn');
+            
+            // Debug: mostra i dati inviati
+            console.log('Invio dati:', Object.fromEntries(formData));
+            
+            // Disabilita il pulsante durante il calcolo
+            calculateBtn.disabled = true;
+            calculateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calcolando...';
+            
+            fetch('/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                console.log('Data received:', data);
+                
+                if (data.success === false) {
+                    alert(data.error || 'Errore durante il calcolo. Riprova.');
+                } else {
+                    displayResults(data);
+                }
+            })
+            .catch(error => {
+                console.error('Errore completo:', error);
+                alert(`Errore: ${error.message}`);
+            })
+            .finally(() => {
+                // Riabilita il pulsante
+                calculateBtn.disabled = false;
+                calculateBtn.innerHTML = '<i class="fas fa-play me-2"></i>Calcola Simulazione';
+            });
+        });
+        
+        // Mostra messaggi informativi sui valori di default
+        function showDefaultValueMessages(data) {
+            let messages = [];
+            
+            if (data.defaults_used.prezzo_proteine || data.defaults_used.resa_proteine) {
+                messages.push('<i class="fas fa-info-circle text-info"></i> <strong>Scenario Impianto:</strong> Usati valori di default per confronto (Prezzo: €8.50/kg, Resa: 0.65%)');
+            }
+            
+            if (data.defaults_used.prezzo_siero) {
+                messages.push('<i class="fas fa-info-circle text-info"></i> <strong>Scenario Siero:</strong> Usato valore di default per confronto (Prezzo: €0.50/litro)');
+            }
+            
+            if (messages.length > 0) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-info alert-dismissible fade show mb-3';
+                alertDiv.innerHTML = `
+                    <div class="d-flex align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="alert-heading mb-2">Valori di Default Utilizzati</h6>
+                            ${messages.map(msg => `<div class="mb-1">${msg}</div>`).join('')}
+                            <small class="text-muted">I grafici mostrano entrambi gli scenari per facilitare il confronto.</small>
+                        </div>
+                        <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                
+                // Inserisce l'alert prima della sezione risultati
+                const resultsSection = document.getElementById('resultsSection');
+                resultsSection.parentNode.insertBefore(alertDiv, resultsSection);
+            }
+        }
+        
+
+
+        function showMessaggioDecisionale(data) {
+            console.log('Mostrando messaggio decisionale:', data.messaggio_decisionale);
+            
+            if (data.messaggio_decisionale) {
+                const messaggioDiv = document.getElementById('messaggioDecisionale');
+                const messaggioTesto = document.getElementById('messaggioTesto');
+                const messaggioDettagli = document.getElementById('messaggioDettagli');
+                const messaggioIcon = document.getElementById('messaggioIcon');
+                
+                // Imposta il messaggio
+                messaggioTesto.textContent = data.messaggio_decisionale.messaggio;
+                
+                // Imposta i dettagli
+                const dettagli = data.messaggio_decisionale.dettagli;
+                messaggioDettagli.innerHTML = `
+                    Budget rimanente: €${dettagli.budget_rimanente.toLocaleString('it-IT')} | 
+                    Tempistiche: ${dettagli.tempistiche || 'Non specificato'} | 
+                    Spazio: ${dettagli.spazio}m² | 
+                    Personale: ${dettagli.personale || 'Non specificato'}
+                `;
+                
+                // Imposta lo stile in base al tipo di messaggio
+                messaggioDiv.className = `alert alert-${data.messaggio_decisionale.tipo_messaggio} mb-4`;
+                
+                // Imposta l'icona appropriata
+                let iconClass = 'fas fa-lightbulb';
+                if (data.messaggio_decisionale.tipo_messaggio === 'success') {
+                    iconClass = 'fas fa-check-circle';
+                } else if (data.messaggio_decisionale.tipo_messaggio === 'warning') {
+                    iconClass = 'fas fa-exclamation-triangle';
+                } else if (data.messaggio_decisionale.tipo_messaggio === 'info') {
+                    iconClass = 'fas fa-info-circle';
+                }
+                messaggioIcon.className = iconClass + ' fa-lg me-2';
+                
+                // Mostra il messaggio
+                messaggioDiv.style.display = 'block';
+            }
+        }
+        
+        function displayResults(data) {
+            console.log('Displaying results for scenario type:', data.scenario_type);
+            console.log('User scenario type:', data.user_scenario_type);
+            
+            // Nascondi messaggio iniziale
+            document.getElementById('initialMessage').style.display = 'none';
+            
+            // Mostra sezioni risultati
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('kpiSection').style.display = 'block';
+            document.getElementById('insightsSection').style.display = 'block';
+            
+            // Mostra messaggi informativi sui valori di default usati
+            showDefaultValueMessages(data);
+            
+            // Mostra messaggio decisionale
+            showMessaggioDecisionale(data);
+            
+            // Popola la tabella in base agli scenari disponibili
+            const tableBody = document.getElementById('resultsTableBody');
+            let tableHTML = '';
+            
+            // Sempre entrambi gli scenari ora
+            const impiantoLabel = data.scenario_impianto.is_user_data ? 'Acquisto Impianto' : 'Acquisto Impianto <small class="text-muted">(valori default)</small>';
+            const sieroLabel = data.scenario_siero.is_user_data ? 'Vendita Siero' : 'Vendita Siero <small class="text-muted">(valori default)</small>';
+            
+            tableHTML = `
+                <tr class="table-info">
+                    <td><strong>${impiantoLabel}</strong></td>
+                    <td class="text-end">${formatCurrency(data.scenario_impianto.ricavi)}</td>
+                    <td class="text-end">${formatCurrency(data.scenario_impianto.costi)}</td>
+                    <td class="text-end ${data.scenario_impianto.margine_netto >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(data.scenario_impianto.margine_netto)}</td>
+                    <td class="text-end">${data.scenario_impianto.roi.toFixed(2)}%</td>
+                </tr>
+                <tr class="table-warning">
+                    <td><strong>${sieroLabel}</strong></td>
+                    <td class="text-end">${formatCurrency(data.scenario_siero.ricavi)}</td>
+                    <td class="text-end">${formatCurrency(data.scenario_siero.costi)}</td>
+                    <td class="text-end ${data.scenario_siero.margine_netto >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(data.scenario_siero.margine_netto)}</td>
+                    <td class="text-end">${data.scenario_siero.roi.toFixed(2)}%</td>
+                </tr>
+            `;
+            
+            tableBody.innerHTML = tableHTML;
+            
+            // Aggiorna KPI (solo se disponibili)
+            if (data.kpi && Object.keys(data.kpi).length > 0) {
+                console.log('Updating KPI section with:', data.kpi);
+                updateKPI(data.kpi);
+            } else {
+                console.log('No KPI data available');
+            }
+            
+            // Aggiorna grafici in base agli scenari disponibili
+            console.log('Updating comparison chart...');
+            updateComparisonChart(data);
+            
+            if (data.distribuzione_costi) {
+                updateCostsDistributionChart(data.distribuzione_costi);
+            }
+            
+
+            
+            if (data.trend_quinquennale) {
+                updateTrendChart(data.trend_quinquennale);
+            }
+            
+            updateProfitabilityChart(data);
+            
+            // Genera insights AI
+            generateInsights(data);
+        }
+        
+        // Aggiorna KPI Cards
+        function updateKPI(kpi) {
+            console.log('Updating KPI with:', kpi);
+            
+            // ROI (solo se l'elemento esiste)
+            const roiValueEl = document.getElementById('roiValue');
+            const roiTrendEl = document.getElementById('roiTrend');
+            if (roiValueEl && roiTrendEl) {
+                if (kpi.roi_impianto !== undefined) {
+                    roiValueEl.textContent = kpi.roi_impianto.toFixed(1) + '%';
+                    roiTrendEl.className = kpi.roi_impianto > 10 ? 'kpi-trend positive' : 'kpi-trend negative';
+                } else {
+                    roiValueEl.textContent = 'N/A';
+                    roiTrendEl.className = 'kpi-trend neutral';
+                }
+            }
+            
+            // Payback
+            const paybackValueEl = document.getElementById('paybackValue');
+            const paybackTrendEl = document.getElementById('paybackTrend');
+            if (paybackValueEl && paybackTrendEl) {
+                if (kpi.payback_years !== undefined) {
+                    const payback = kpi.payback_years === 999 ? 'N/A' : kpi.payback_years.toFixed(1);
+                    paybackValueEl.textContent = payback;
+                    paybackTrendEl.className = kpi.payback_years < 5 ? 'kpi-trend positive' : 'kpi-trend negative';
+                } else {
+                    paybackValueEl.textContent = 'N/A';
+                    paybackTrendEl.className = 'kpi-trend neutral';
+                }
+            }
+            
+            // Efficienza
+            const efficienzaValueEl = document.getElementById('efficienzaValue');
+            if (efficienzaValueEl) {
+                if (kpi.efficienza_conversione !== undefined) {
+                    efficienzaValueEl.textContent = kpi.efficienza_conversione.toFixed(2) + '%';
+                } else {
+                    efficienzaValueEl.textContent = 'N/A';
+                }
+            }
+            
+            // Valore aggiunto
+            const valoreValueEl = document.getElementById('valoreValue');
+            if (valoreValueEl) {
+                if (kpi.valore_aggiunto_per_litro !== undefined) {
+                    valoreValueEl.textContent = formatCurrencyShort(kpi.valore_aggiunto_per_litro);
+                } else {
+                    valoreValueEl.textContent = 'N/A';
+                }
+            }
+        }
+        
+        // Grafico principale comparativo
+        function updateComparisonChart(data) {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            
+            if (comparisonChart) {
+                comparisonChart.destroy();
+            }
+            
+            const datasets = [];
+            
+            if (data.scenario_impianto) {
+                datasets.push({
+                    label: 'Acquisto Impianto',
+                    data: [
+                        data.scenario_impianto.ricavi,
+                        data.scenario_impianto.costi,
+                        data.scenario_impianto.margine_netto
+                    ],
+                    backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    borderWidth: 2,
+                    borderRadius: 8
+                });
+            }
+            
+            if (data.scenario_siero) {
+                datasets.push({
+                    label: 'Vendita Siero',
+                    data: [
+                        data.scenario_siero.ricavi,
+                        data.scenario_siero.costi,
+                        data.scenario_siero.margine_netto
+                    ],
+                    backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                    borderColor: 'rgba(255, 193, 7, 1)',
+                    borderWidth: 2,
+                    borderRadius: 8
+                });
+            }
+            
+            comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Ricavi', 'Costi', 'Margine Netto'],
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Confronto Scenari: Impianto vs Vendita Siero',
+                            font: { size: 16, weight: 'bold' }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: { usePointStyle: true, padding: 20 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return '€ ' + value.toLocaleString('it-IT');
+                                }
+                            }
+                        },
+                        x: { grid: { display: false } }
+                    },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeOutBounce'
+                    }
+                }
+            });
+        }
+        
+        // Grafico distribuzione costi
+        function updateCostsDistributionChart(distribuzione) {
+            console.log("Dati distribuzione costi:", distribuzione); // Debug
+            const ctx = document.getElementById('costsDistributionChart').getContext('2d');
+            
+            if (costsDistributionChart) {
+                costsDistributionChart.destroy();
+            }
+            
+            costsDistributionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ammortamento Impianto', 'Costi Operativi', 'Costi Distribuzione'],
+                    datasets: [{
+                        data: [distribuzione.ammortamento, distribuzione.operativi, distribuzione.distribuzione],
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(56, 239, 125, 0.8)',
+                            'rgba(255, 159, 64, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(102, 126, 234, 1)',
+                            'rgba(56, 239, 125, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 3,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 20, usePointStyle: true }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = formatCurrency(context.raw);
+                                    const percentage = ((context.raw / distribuzione.totale) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        animateRotate: true,
+                        duration: 2000
+                    }
+                }
+            });
+        }
+        
+        // ROI Gauge Chart
+        function updateROIGaugeChart(roi) {
+            const ctx = document.getElementById('roiGaugeChart').getContext('2d');
+            
+            if (roiGaugeChart) {
+                roiGaugeChart.destroy();
+            }
+            
+            const roiCapped = Math.min(Math.max(roi, 0), 100);
+            
+            roiGaugeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [roiCapped, 100 - roiCapped],
+                        backgroundColor: [
+                            roi > 20 ? 'rgba(56, 239, 125, 0.8)' : 
+                            roi > 10 ? 'rgba(255, 193, 7, 0.8)' : 'rgba(245, 87, 108, 0.8)',
+                            'rgba(230, 230, 230, 0.3)'
+                        ],
+                        borderWidth: 0,
+                        circumference: 180,
+                        rotation: 270
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                },
+                plugins: [{
+                    beforeDraw: function(chart) {
+                        const { ctx, width, height } = chart;
+                        ctx.restore();
+                        const fontSize = (height / 114).toFixed(2);
+                        ctx.font = `bold ${fontSize}em sans-serif`;
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = '#2c3e50';
+                        
+                        const text = roi.toFixed(1) + '%';
+                        const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                        const textY = height / 1.4;
+                        
+                        ctx.fillText(text, textX, textY);
+                        ctx.save();
+                    }
+                }]
+            });
+        }
+        
+        // Grafico trend quinquennale
+        function updateTrendChart(trendData) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            if (trendChart) {
+                trendChart.destroy();
+            }
+            
+            const labels = trendData.map(d => `Anno ${d.anno}`);
+            
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Ricavi Cumulativi Impianto',
+                        data: trendData.map(d => d.ricavi_impianto),
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Costi Cumulativi Impianto',
+                        data: trendData.map(d => d.costi_impianto),
+                        borderColor: 'rgba(245, 87, 108, 1)',
+                        backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Ricavi Cumulativi Siero',
+                        data: trendData.map(d => d.ricavi_siero),
+                        borderColor: 'rgba(56, 239, 125, 1)',
+                        backgroundColor: 'rgba(56, 239, 125, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.2
+                    }, {
+                        label: 'Costi Cumulativi Siero',
+                        data: trendData.map(d => d.costi_siero),
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [10, 5],
+                        fill: false,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { usePointStyle: true, padding: 20 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value);
+                                }
+                            }
+                        },
+                        x: { grid: { display: false } }
+                    },
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+        }
+        
+        // Grafico profittabilità
+        function updateProfitabilityChart(data) {
+            const ctx = document.getElementById('profitabilityChart').getContext('2d');
+            
+            if (profitabilityChart) {
+                profitabilityChart.destroy();
+            }
+            
+            const margineImpianto = data.scenario_impianto.margine_netto;
+            const margineSiero = data.scenario_siero.margine_netto;
+            const differenza = margineImpianto - margineSiero;
+            
+            profitabilityChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Margine Impianto', 'Margine Siero', 'Differenza'],
+                    datasets: [{
+                        label: 'Profittabilità (€)',
+                        data: [margineImpianto, margineSiero, differenza],
+                        backgroundColor: [
+                            margineImpianto >= 0 ? 'rgba(56, 239, 125, 0.8)' : 'rgba(245, 87, 108, 0.8)',
+                            margineSiero >= 0 ? 'rgba(56, 239, 125, 0.8)' : 'rgba(245, 87, 108, 0.8)',
+                            differenza >= 0 ? 'rgba(102, 126, 234, 0.8)' : 'rgba(245, 87, 108, 0.8)'
+                        ],
+                        borderColor: [
+                            margineImpianto >= 0 ? 'rgba(56, 239, 125, 1)' : 'rgba(245, 87, 108, 1)',
+                            margineSiero >= 0 ? 'rgba(56, 239, 125, 1)' : 'rgba(245, 87, 108, 1)',
+                            differenza >= 0 ? 'rgba(102, 126, 234, 1)' : 'rgba(245, 87, 108, 1)'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `€ ${context.raw.toLocaleString('it-IT')}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value);
+                                }
+                            }
+                        },
+                        x: { grid: { display: false } }
+                    },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeOutBounce'
+                    }
+                }
+            });
+        }
+        
+        // Genera insights AI
+        function generateInsights(data) {
+            const insightsContainer = document.getElementById('aiInsights');
+            const roi = data.kpi.roi_impianto;
+            const payback = data.kpi.payback_years;
+            const differenzaMargine = data.comparazione.differenza_margine;
+            
+            let insights = [];
+            
+            // Analisi ROI
+            if (roi > 20) {
+                insights.push({
+                    icon: 'fas fa-thumbs-up text-success',
+                    title: 'ROI Eccellente',
+                    text: `Il ROI del ${roi.toFixed(1)}% indica un investimento molto redditizio. L'impianto genererà valore significativo.`
+                });
+            } else if (roi > 10) {
+                insights.push({
+                    icon: 'fas fa-check-circle text-warning',
+                    title: 'ROI Moderato',
+                    text: `Il ROI del ${roi.toFixed(1)}% è accettabile. Considera ottimizzazioni per migliorare la redditività.`
+                });
+            } else {
+                insights.push({
+                    icon: 'fas fa-exclamation-triangle text-danger',
+                    title: 'ROI Basso',
+                    text: `Il ROI del ${roi.toFixed(1)}% potrebbe non giustificare l'investimento. Valuta alternative.`
+                });
+            }
+            
+
+            
+            // Confronto scenari
+            if (differenzaMargine > 50000) {
+                insights.push({
+                    icon: 'fas fa-chart-line text-success',
+                    title: 'Vantaggio Significativo',
+                    text: `L'impianto genera ${formatCurrency(differenzaMargine)} in più rispetto alla vendita siero. Investimento consigliato.`
+                });
+            } else if (differenzaMargine > 0) {
+                insights.push({
+                    icon: 'fas fa-balance-scale text-warning',
+                    title: 'Vantaggio Moderato',
+                    text: `L'impianto offre un vantaggio di ${formatCurrency(differenzaMargine)}. Valuta fattori qualitativi aggiuntivi.`
+                });
+            } else {
+                insights.push({
+                    icon: 'fas fa-arrow-down text-danger',
+                    title: 'Vendita Siero Preferibile',
+                    text: `La vendita diretta del siero è più conveniente di ${formatCurrency(Math.abs(differenzaMargine))}. Sconsigliato l'impianto.`
+                });
+            }
+            
+            // Efficienza
+            const efficienza = data.kpi.efficienza_conversione;
+            if (efficienza > 0.8) {
+                insights.push({
+                    icon: 'fas fa-cogs text-success',
+                    title: 'Alta Efficienza',
+                    text: `L'efficienza di conversione del ${efficienza.toFixed(2)}% è ottima per la valorizzazione del siero.`
+                });
+            }
+            
+            // Genera HTML
+            insightsContainer.innerHTML = insights.map(insight => `
+                <div class="alert alert-light border-start border-4 border-primary mb-3">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="${insight.icon} fa-2x"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">${insight.title}</h6>
+                            <p class="mb-0 text-muted">${insight.text}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('it-IT', {
+                style: 'currency',
+                currency: 'EUR',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+        
+        function formatCurrencyShort(value) {
+            if (Math.abs(value) >= 1000) {
+                return '€' + (value / 1000).toFixed(1) + 'k';
+            }
+            return formatCurrency(value);
+        }
+        
+        // Carica risultati se già disponibili (per refresh della pagina)
+        {% if simulation_json %}
+            const existingData = {{ simulation_json|safe }};
+            displayResults(existingData);
+        {% endif %}
+    </script>
+</body>
+</html>
